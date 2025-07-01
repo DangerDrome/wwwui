@@ -12,48 +12,71 @@
 <body>
   <div id="fullpage-root">
     <div class="fp-section" data-index="0" data-active="true">
-      <div class="section-title"><i data-lucide="rocket"></i> Welcome</div>
-      <div class="section-content">This is a demo of WWWUI - a full-page, infinite scroll, mobile-first framework using vanilla JS, with grayscale colors and Lucide icons.</div>
-    </div>
-    <div class="fp-section" data-index="1">
-      <div class="section-title"><i data-lucide="smartphone"></i> Mobile First</div>
-      <div class="section-content">Resize the window or use your phone to see the responsive design in action.</div>
-    </div>
-    <div class="fp-section" data-index="2">
-      <div class="section-title"><i data-lucide="layers"></i> Horizontal Slides</div>
       <div class="fp-slides" data-slides>
         <div class="fp-slide" data-slide-index="0" data-active="true">
-          <div class="section-title"><i data-lucide="image"></i> Slide 1</div>
+          <div class="section-title"><i data-lucide="rocket"></i> Welcome</div>
+          <div class="section-content">This is a demo of WWWUI - a full-page, infinite scroll, mobile-first framework using vanilla JS, with grayscale colors and Lucide icons.</div>
+        </div>
+      </div>
+    </div>
+    <div class="fp-section" data-index="1">
+      <div class="fp-slides" data-slides>
+        <div class="fp-slide" data-slide-index="0" data-active="true">
+          <div class="section-title"><i data-lucide="smartphone"></i> Mobile First</div>
+          <div class="section-content">Resize the window or use your phone to see the responsive design in action.</div>
+        </div>
+        <div class="fp-slide" data-slide-index="1">
+          <div class="section-title"><i data-lucide="image"></i> Slide 1.2</div>
+          <div class="section-content">This is the second horizontal slide.</div>
+        </div>
+      </div>
+    </div>
+    <div class="fp-section" data-index="2">
+      <div class="fp-slides" data-slides>
+        <div class="fp-slide" data-slide-index="0" data-active="true">
+          <div class="section-title"><i data-lucide="layers"></i> Slide 2.1</div>
           <div class="section-content">This is the first horizontal slide.</div>
         </div>
         <div class="fp-slide" data-slide-index="1">
-          <div class="section-title"><i data-lucide="image"></i> Slide 2</div>
+          <div class="section-title"><i data-lucide="image"></i> Slide 2.2</div>
           <div class="section-content">This is the second horizontal slide.</div>
         </div>
         <div class="fp-slide" data-slide-index="2">
-          <div class="section-title"><i data-lucide="image"></i> Slide 3</div>
+          <div class="section-title"><i data-lucide="image"></i> Slide 2.3</div>
           <div class="section-content">This is the third horizontal slide.</div>
         </div>
         <div class="fp-slide" data-slide-index="3">
-          <div class="section-title"><i data-lucide="image"></i> Slide 4</div>
+          <div class="section-title"><i data-lucide="image"></i> Slide 2.4</div>
           <div class="section-content">This is the fourth horizontal slide.</div>
-        </div>
-        <div class="fp-slide" data-slide-index="4">
-          <div class="section-title"><i data-lucide="image"></i> Slide 5</div>
-          <div class="section-content">This is the fifth and final slide.</div>
-        </div>
-        <div class="fp-slide-arrows">
-          <button class="fp-arrow-btn" data-slide-prev><i data-lucide="arrow-left"></i></button>
-          <button class="fp-arrow-btn" data-slide-next><i data-lucide="arrow-right"></i></button>
         </div>
       </div>
     </div>
     <div class="fp-section" data-index="3">
-      <div class="section-title"><i data-lucide="zap"></i> Infinite Scroll</div>
-      <div class="section-content">Scroll up or down to loop infinitely through the sections. Try keyboard arrows, mouse wheel, or touch gestures!</div>
+      <div class="fp-slides" data-slides>
+        <div class="fp-slide" data-slide-index="0" data-active="true">
+          <div class="section-title"><i data-lucide="zap"></i> Infinite Scroll</div>
+          <div class="section-content">Scroll up or down to loop infinitely through the sections. Try keyboard arrows, mouse wheel, or touch gestures!</div>
+        </div>
+        <div class="fp-slide" data-slide-index="1">
+          <div class="section-title"><i data-lucide="image"></i> Slide 3.2</div>
+          <div class="section-content">This is the second horizontal slide.</div>
+        </div>
+        <div class="fp-slide" data-slide-index="2">
+          <div class="section-title"><i data-lucide="image"></i> Slide 3.3</div>
+          <div class="section-content">This is the third and final slide for this section.</div>
+        </div>
+      </div>
+    </div>
+    <div class="fp-section" data-index="4">
+      <div class="fp-slides" data-slides>
+        <div class="fp-slide" data-slide-index="0" data-active="true">
+          <div class="section-title"><i data-lucide="box"></i> Another Section</div>
+          <div class="section-content">This is just another standard section.</div>
+        </div>
+      </div>
     </div>
   </div>
-  <div class="fp-nav-dots" id="fp-nav-dots"></div>
+  <div class="fp-minimap" id="fp-minimap"></div>
   <!-- Scripts -->
   <script src="wwwui.js"></script>
   <script src="app.js"></script>
