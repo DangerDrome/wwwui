@@ -2,6 +2,15 @@
 
 A modern, lightweight full-page scrolling framework with advanced navigation features.
 
+```
+██╗    ██╗██╗    ██╗██╗    ██╗██╗   ██╗██╗
+██║    ██║██║    ██║██║    ██║██║   ██║██║
+██║ █╗ ██║██║ █╗ ██║██║ █╗ ██║██║   ██║██║
+██║███╗██║██║███╗██║██║███╗██║██║   ██║██║
+╚███╔███╔╝╚███╔███╔╝╚███╔███╔╝╚██████╔╝██║
+ ╚══╝╚══╝  ╚══╝╚══╝  ╚══╝╚══╝  ╚═════╝ ╚═╝                                    
+```
+
 ## Features
 
 - **Smooth Full-Page Scrolling**: Navigate through sections with fluid animations
