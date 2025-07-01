@@ -7,7 +7,7 @@ document.addEventListener('DOMContentLoaded', function() {
   wwwui.init({
     root: '#fullpage-root',
     minimap: '#fp-minimap',
-    autoScroll: true,
+    autoScroll: false,
     autoScrollDelay: 4000,
     easing: 'cubic-bezier(0.77,0,0.175,1)',
     onSectionEnter: function(index) {

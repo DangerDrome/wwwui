@@ -31,6 +31,10 @@
   let currentSlideIndex = 0;
   let slideStates = [];
   let slideSelectionStates = [];
+  let playlist = [];
+  let currentPlaylistIndex = -1;
+  let dragTarget = { section: -1, slide: -1 };
+  let ghostEl = null;
 
   // --- Core Logic ---
 
@@ -42,30 +46,15 @@
    * @param {string} direction - The direction of navigation ('up' or 'down').
    */
   function updateSection(newIndex, animate, slideIndex = null, direction = 'down') {
-    if (typeof config.onSectionLeave === 'function') {
+    if (isTransitioning) return;
+    const isSectionChange = newIndex !== currentSectionIndex;
+
+    if (isSectionChange && typeof config.onSectionLeave === 'function') {
       config.onSectionLeave(currentSectionIndex);
     }
     isTransitioning = true;
     const total = sectionElements.length;
     const oldIndex = currentSectionIndex;
-
-    // Determine the target slide for the new section immediately to prevent flicker.
-    let targetSlide = slideIndex;
-    if (targetSlide === null) {
-      const currentSelection = slideSelectionStates[newIndex];
-      const selectedIndexes = [];
-      currentSelection.forEach((isSelected, index) => {
-        if (isSelected) selectedIndexes.push(index);
-      });
-
-      if (selectedIndexes.length > 0) {
-        targetSlide = direction === 'up' ? selectedIndexes[selectedIndexes.length - 1] : selectedIndexes[0];
-      } else {
-        targetSlide = 0; // Default to first slide if none are selected
-      }
-    }
-    // Set the state for the upcoming slide *before* any UI updates.
-    currentSlideIndex = targetSlide;
 
     sectionElements.forEach((el, i) => {
       // Calculate previous and new positions based on the infinite scroll logic
@@ -90,21 +79,40 @@
     });
 
     currentSectionIndex = newIndex;
-    updateMinimap();
 
     setTimeout(() => {
       isTransitioning = false;
-      if (typeof config.onSectionEnter === 'function') {
+      if (isSectionChange && typeof config.onSectionEnter === 'function') {
         config.onSectionEnter(currentSectionIndex);
       }
       setupSlides(sectionElements[currentSectionIndex]);
       
-      // The state (currentSlideIndex) is already correct.
-      // Just apply the visual transition to the slide itself.
-      updateSlide(currentSlideIndex, false); // No animation needed here
+      // Determine the target slide for the new section now that the transition is complete.
+      let targetSlide;
+      if (slideIndex !== null) {
+        // A specific slide index is requested (e.g. from a vertical drag).
+        // We need to clamp it to a valid index for the destination section.
+        const numSlidesInNewSection = slideElements.length;
+        targetSlide = Math.max(0, Math.min(slideIndex, numSlidesInNewSection - 1));
+      } else {
+        // No specific slide requested, find first/last *selected* based on scroll direction.
+        const currentSelection = slideSelectionStates[currentSectionIndex];
+        const selectedIndexes = [];
+        currentSelection.forEach((isSelected, index) => {
+          if (isSelected) selectedIndexes.push(index);
+        });
 
-      updateMinimap(); // Also update minimap after slide setup
-      if (config.autoScroll) restartAutoScroll();
+        if (selectedIndexes.length > 0) {
+          targetSlide = direction === 'up' ? selectedIndexes[selectedIndexes.length - 1] : selectedIndexes[0];
+        } else {
+          targetSlide = 0; // Default to first slide if none are selected
+        }
+      }
+      
+      // Update slide and minimap with the final correct state.
+      // Animate the slide into position if requested.
+      updateSlide(targetSlide, animate);
+      updateMinimap();
     }, animate ? TRANSITION_DURATION : 0);
   }
 
@@ -114,6 +122,13 @@
    * @param {boolean} animate - Whether to animate the transition.
    */
   function updateSlide(newIndex, animate) {
+    if (animate && isTransitioning) {
+      // Don't start a new slide transition if a section transition is already running.
+      // The section transition's completion will handle the final slide state.
+      // We just update the index for now.
+      currentSlideIndex = newIndex;
+      return;
+    }
     const total = slideElements.length;
     if (!total) return;
 
@@ -270,33 +285,17 @@
     updateSlide(prevIndex, true);
   }
 
-  function moveToNextSelectedSlide() {
-    if (isTransitioning) return;
+  function playNextInPlaylist() {
+    if (isTransitioning || playlist.length === 0) return;
 
-    const currentSelection = slideSelectionStates[currentSectionIndex];
-    const selectedIndexes = [];
-    currentSelection.forEach((isSelected, index) => {
-      if (isSelected) selectedIndexes.push(index);
-    });
-
-    if (selectedIndexes.length === 0) {
-      moveDown(); // No slides selected, move to the next section
-      return;
-    }
-
-    const currentIndexInSelection = selectedIndexes.indexOf(currentSlideIndex);
-    let nextIndexInSelection;
-
-    if (currentIndexInSelection === -1) {
-      // Current slide is not selected, jump to the first selected one
-      nextIndexInSelection = 0;
+    currentPlaylistIndex = (currentPlaylistIndex + 1) % playlist.length;
+    const nextItem = playlist[currentPlaylistIndex];
+    
+    if (nextItem.section !== currentSectionIndex) {
+      moveTo(nextItem.section, nextItem.slide, 'down');
     } else {
-      // Move to the next selected slide, looping if necessary
-      nextIndexInSelection = (currentIndexInSelection + 1) % selectedIndexes.length;
+      updateSlide(nextItem.slide, true);
     }
-
-    const nextSlideIndex = selectedIndexes[nextIndexInSelection];
-    updateSlide(nextSlideIndex, true);
   }
 
   // --- Event Handlers ---
@@ -308,8 +307,8 @@
     if (config.autoScroll) restartAutoScroll();
 
     // Prioritize horizontal scroll for slides
-    if (e.deltaX > 30) return handleSlideNext();
-    if (e.deltaX < -30) return handleSlidePrev();
+      if (e.deltaX > 30) return handleSlideNext();
+      if (e.deltaX < -30) return handleSlidePrev();
 
     // Vertical scroll for sections
     if (e.deltaY > 30) return moveDown();
@@ -321,8 +320,8 @@
 
     if (config.autoScroll) restartAutoScroll();
 
-    if (e.key === 'ArrowRight') return handleSlideNext();
-    if (e.key === 'ArrowLeft') return handleSlidePrev();
+      if (e.key === 'ArrowRight') return handleSlideNext();
+      if (e.key === 'ArrowLeft') return handleSlidePrev();
     if (e.key === 'ArrowDown' || e.key === 'PageDown') return moveDown();
     if (e.key === 'ArrowUp' || e.key === 'PageUp') return moveUp();
   }
@@ -330,12 +329,15 @@
   function handleTouchStart(e) {
     if (isTransitioning || e.touches.length !== 1) return;
 
+    if (config.autoScroll) {
+      config.autoScroll = false; // Permanently disable on interaction
+      stopAutoScroll();
+    }
+
     isDragging = true;
     touchStart.y = e.touches[0].clientY;
     touchStart.x = e.touches[0].clientX;
     
-    stopAutoScroll();
-
     // Disable transitions for manual dragging
     sectionElements.forEach(el => el.style.transition = 'none');
     slideElements.forEach(slide => slide.style.transition = 'none');
@@ -348,8 +350,8 @@
     const deltaY = e.touches[0].clientY - touchStart.y;
     const deltaX = e.touches[0].clientX - touchStart.x;
     
-    // Prioritize horizontal drag for slides
-    if (Math.abs(deltaX) > Math.abs(deltaY)) {
+    // Update visual drag without snapping
+    if (slideElements.length > 1 && Math.abs(deltaX) > Math.abs(deltaY)) {
       const totalSlides = slideElements.length;
       slideElements.forEach((slide, i) => {
         let offset = i - currentSlideIndex;
@@ -358,7 +360,6 @@
         slide.style.transform = `translateX(calc(${offset * 100}vw + ${deltaX}px))`;
       });
     } else {
-      // Dragging sections vertically
       const total = sectionElements.length;
       sectionElements.forEach((el, i) => {
         let offset = i - currentSectionIndex;
@@ -373,33 +374,56 @@
     if (!isDragging) return;
     isDragging = false;
     
-    const DRAG_THRESHOLD = 50; // Min pixels to trigger a scroll
+    const DRAG_THRESHOLD = window.innerHeight * 0.3;
+    const SLIDE_DRAG_THRESHOLD = window.innerWidth * 0.1;
     const deltaY = e.changedTouches[0].clientY - touchStart.y;
     const deltaX = e.changedTouches[0].clientX - touchStart.x;
 
     // Re-enable transitions for all elements for the snap animation
     sectionElements.forEach(el => el.style.transition = `transform ${TRANSITION_DURATION}ms ${config.easing}`);
-    slideElements.forEach(slide => slide.style.transition = `transform ${TRANSITION_DURATION}ms ${config.easing}`);
     
-    if (Math.abs(deltaX) > Math.abs(deltaY) && Math.abs(deltaX) > DRAG_THRESHOLD) {
-      deltaX < 0 ? handleSlideNext() : handleSlidePrev();
+    if (slideElements.length > 1 && Math.abs(deltaX) > Math.abs(deltaY) && Math.abs(deltaX) > SLIDE_DRAG_THRESHOLD) {
+      slideElements.forEach(slide => slide.style.transition = `transform ${TRANSITION_DURATION}ms ${config.easing}`);
+      updateSlide(currentSlideIndex + (deltaX < 0 ? 1 : -1), true);
     } else if (Math.abs(deltaY) > DRAG_THRESHOLD) {
-      deltaY < 0 ? moveDown() : moveUp();
+      moveTo(currentSectionIndex + (deltaY < 0 ? 1 : -1), currentSlideIndex, deltaY < 0 ? 'down' : 'up');
     } else {
-      // Didn't meet threshold, snap back to current section and slide
-      updateSection(currentSectionIndex, true);
-      updateSlide(currentSlideIndex, true);
+      // Snap back to current position.
+      isTransitioning = true;
+      sectionElements.forEach(el => el.style.transition = `transform ${TRANSITION_DURATION}ms ${config.easing}`);
+      slideElements.forEach(slide => slide.style.transition = `transform ${TRANSITION_DURATION}ms ${config.easing}`);
+      
+      const totalSections = sectionElements.length;
+      sectionElements.forEach((el, i) => {
+        let offset = i - currentSectionIndex;
+        if (offset < -Math.floor(totalSections / 2)) offset += totalSections;
+        if (offset > Math.floor(totalSections / 2)) offset -= totalSections;
+        el.style.transform = `translateY(${offset * 100}vh)`;
+      });
+
+      const totalSlides = slideElements.length;
+      slideElements.forEach((slide, i) => {
+        let offset = i - currentSlideIndex;
+        if (offset < -Math.floor(totalSlides / 2)) offset += totalSlides;
+        if (offset > Math.floor(totalSlides / 2)) offset -= totalSlides;
+        slide.style.transform = `translateX(${offset * 100}vw)`;
+      });
+      
+      setTimeout(() => { isTransitioning = false; }, TRANSITION_DURATION);
     }
   }
 
   function handleMouseDown(e) {
     if (e.button !== 0 || isTransitioning) return; // Only main button
 
+    if (config.autoScroll) {
+      config.autoScroll = false; // Permanently disable on interaction
+      stopAutoScroll();
+    }
+
     isDragging = true;
     dragStart.y = e.clientY;
     dragStart.x = e.clientX;
-
-    stopAutoScroll();
 
     const root = document.querySelector(config.root);
     root.style.cursor = 'grabbing';
@@ -415,7 +439,7 @@
     const deltaY = e.clientY - dragStart.y;
     const deltaX = e.clientX - dragStart.x;
 
-    if (Math.abs(deltaX) > Math.abs(deltaY)) {
+    if (slideElements.length > 1 && Math.abs(deltaX) > Math.abs(deltaY)) {
       const totalSlides = slideElements.length;
       slideElements.forEach((slide, i) => {
         let offset = i - currentSlideIndex;
@@ -441,20 +465,41 @@
     const root = document.querySelector(config.root);
     root.style.cursor = 'grab';
 
-    const DRAG_THRESHOLD = 50;
+    const DRAG_THRESHOLD = window.innerHeight * 0.3;
+    const SLIDE_DRAG_THRESHOLD = window.innerWidth * 0.1;
     const deltaY = e.clientY - dragStart.y;
     const deltaX = e.clientX - dragStart.x;
 
     sectionElements.forEach(el => el.style.transition = `transform ${TRANSITION_DURATION}ms ${config.easing}`);
-    slideElements.forEach(slide => slide.style.transition = `transform ${TRANSITION_DURATION}ms ${config.easing}`);
 
-    if (Math.abs(deltaX) > Math.abs(deltaY) && Math.abs(deltaX) > DRAG_THRESHOLD) {
-      deltaX < 0 ? handleSlideNext() : handleSlidePrev();
+    if (slideElements.length > 1 && Math.abs(deltaX) > Math.abs(deltaY) && Math.abs(deltaX) > SLIDE_DRAG_THRESHOLD) {
+      slideElements.forEach(slide => slide.style.transition = `transform ${TRANSITION_DURATION}ms ${config.easing}`);
+      updateSlide(currentSlideIndex + (deltaX < 0 ? 1 : -1), true);
     } else if (Math.abs(deltaY) > DRAG_THRESHOLD) {
-      deltaY < 0 ? moveDown() : moveUp();
+      moveTo(currentSectionIndex + (deltaY < 0 ? 1 : -1), currentSlideIndex, deltaY < 0 ? 'down' : 'up');
     } else {
-      updateSection(currentSectionIndex, true);
-      updateSlide(currentSlideIndex, true);
+      // Snap back to current position.
+      isTransitioning = true;
+      sectionElements.forEach(el => el.style.transition = `transform ${TRANSITION_DURATION}ms ${config.easing}`);
+      slideElements.forEach(slide => slide.style.transition = `transform ${TRANSITION_DURATION}ms ${config.easing}`);
+      
+      const totalSections = sectionElements.length;
+      sectionElements.forEach((el, i) => {
+        let offset = i - currentSectionIndex;
+        if (offset < -Math.floor(totalSections / 2)) offset += totalSections;
+        if (offset > Math.floor(totalSections / 2)) offset -= totalSections;
+        el.style.transform = `translateY(${offset * 100}vh)`;
+      });
+
+      const totalSlides = slideElements.length;
+      slideElements.forEach((slide, i) => {
+        let offset = i - currentSlideIndex;
+        if (offset < -Math.floor(totalSlides / 2)) offset += totalSlides;
+        if (offset > Math.floor(totalSlides / 2)) offset -= totalSlides;
+        slide.style.transform = `translateX(${offset * 100}vw)`;
+      });
+      
+      setTimeout(() => { isTransitioning = false; }, TRANSITION_DURATION);
     }
   }
 
@@ -475,17 +520,28 @@
     autoScrollTimer = null;
   }
 
+  function buildPlaylist() {
+    playlist = [];
+    slideSelectionStates.forEach((slides, sectionIdx) => {
+      slides.forEach((isSelected, slideIdx) => {
+        if (isSelected) {
+          playlist.push({ section: sectionIdx, slide: slideIdx });
+        }
+      });
+    });
+  }
+
   function restartAutoScroll() {
     if (config.autoScroll) {
       stopAutoScroll();
+      buildPlaylist();
+
+      if (playlist.length === 0) return;
+
+      currentPlaylistIndex = playlist.findIndex(item => item.section === currentSectionIndex && item.slide === currentSlideIndex);
+      // If the current slide isn't in the playlist (e.g. it was just deselected), we default to -1 so the next is 0.
       
-      const hasSelectedSlides = slideSelectionStates[currentSectionIndex] && slideSelectionStates[currentSectionIndex].some(s => s);
-      
-      if (hasSelectedSlides) {
-        autoScrollTimer = setInterval(moveToNextSelectedSlide, config.autoScrollDelay);
-      } else {
-        autoScrollTimer = setInterval(moveDown, config.autoScrollDelay);
-      }
+      autoScrollTimer = setInterval(playNextInPlaylist, config.autoScrollDelay);
     }
   }
 
@@ -697,8 +753,10 @@
       slideSelectionStates[idx] = Array(slides.length).fill(true);
     });
     
+    buildPlaylist(); // Initial playlist build
     setupMinimap();
     setupEvents();
+    ghostEl = document.querySelector('#fp-drag-ghost');
     
     updateSection(0, false);
   }
