@@ -1,6 +1,6 @@
 /**
- * @license fullpage-vanilla v1.0.0
- * https://github.com/your-repo/fullpage-vanilla
+ * @license wwwui v1.0.0
+ * https://github.com/your-repo/wwwui
  *
  * Copyright (C) 2023 Your Name - All rights reserved.
  *
@@ -404,7 +404,7 @@
   }
 
   // --- Public API ---
-  global.fullpageFramework = {
+  global.wwwui = {
     init,
     moveTo,
     moveUp,
