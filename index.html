@@ -1,85 +1,47 @@
 <!DOCTYPE html>
-<html lang="en" class="dark">
+<html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>WWWUI Framework Demo</title>
-  <!-- Lucide Icons CDN -->
-  <script src="https://unpkg.com/lucide@latest"></script>
-  <!-- Styles -->
-  <link rel="stylesheet" href="style.css">
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Grid Slider</title>
+    <link rel="stylesheet" href="style.css">
 </head>
 <body>
-  <div id="fullpage-root">
-    <div class="fp-section" data-index="0" data-active="true">
-      <div class="fp-slides" data-slides>
-        <div class="fp-slide" data-slide-index="0" data-active="true">
-          <div class="section-title"><i data-lucide="rocket"></i> Welcome</div>
-          <div class="section-content">This is a demo of WWWUI - a full-page, infinite scroll, mobile-first framework using vanilla JS, with grayscale colors and Lucide icons.</div>
+    <img src="danger_logo_mini.webp" id="top-left-logo" alt="Danger Logo">
+    <div id="grid-container">
+        <div id="grid-wrapper">
+            <!-- Row 1 -->
+            <div class="grid-item" style="background-color: #734d4d;">Item 1 (0,0)</div>
+            <div class="grid-item" style="background-color: #735f4d;">Item 2 (0,1)</div>
+            <div class="grid-item" style="background-color: #737355;">Item 3 (0,2)</div>
+            <!-- Row 2 -->
+            <div class="grid-item" style="background-color: #597354;">Item 4 (1,0)</div>
+            <div class="grid-item" style="background-color: #497273;">Item 5 (1,1)</div>
+            <div class="grid-item" style="background-color: #4b5a73;">Item 6 (1,2)</div>
+            <!-- Row 3 -->
+            <div class="grid-item" style="background-color: #554e73;">Item 7 (2,0)</div>
+            <div class="grid-item" style="background-color: #735873;">Item 8 (2,1)</div>
+            <div class="grid-item" style="background-color: #5a5a5a;">Item 9 (2,2)</div>
         </div>
-      </div>
     </div>
-    <div class="fp-section" data-index="1">
-      <div class="fp-slides" data-slides>
-        <div class="fp-slide" data-slide-index="0" data-active="true">
-          <div class="section-title"><i data-lucide="smartphone"></i> Mobile First</div>
-          <div class="section-content">Resize the window or use your phone to see the responsive design in action.</div>
-        </div>
-        <div class="fp-slide" data-slide-index="1">
-          <div class="section-title"><i data-lucide="image"></i> Slide 1.2</div>
-          <div class="section-content">This is the second horizontal slide.</div>
-        </div>
-      </div>
+    <div id="minimap">
+        <div id="minimap-popover"></div>
     </div>
-    <div class="fp-section" data-index="2">
-      <div class="fp-slides" data-slides>
-        <div class="fp-slide" data-slide-index="0" data-active="true">
-          <div class="section-title"><i data-lucide="layers"></i> Slide 2.1</div>
-          <div class="section-content">This is the first horizontal slide.</div>
-        </div>
-        <div class="fp-slide" data-slide-index="1">
-          <div class="section-title"><i data-lucide="image"></i> Slide 2.2</div>
-          <div class="section-content">This is the second horizontal slide.</div>
-        </div>
-        <div class="fp-slide" data-slide-index="2">
-          <div class="section-title"><i data-lucide="image"></i> Slide 2.3</div>
-          <div class="section-content">This is the third horizontal slide.</div>
-        </div>
-        <div class="fp-slide" data-slide-index="3">
-          <div class="section-title"><i data-lucide="image"></i> Slide 2.4</div>
-          <div class="section-content">This is the fourth horizontal slide.</div>
-        </div>
-      </div>
+    <div id="navigation-arrows">
+        <button id="arrow-up" class="arrow-btn">
+            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 19V5M5 12l7-7 7 7"/></svg>
+        </button>
+        <button id="arrow-down" class="arrow-btn">
+            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14M19 12l-7 7-7-7"/></svg>
+        </button>
+        <button id="arrow-left" class="arrow-btn">
+            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 12H5M12 19l-7-7 7-7"/></svg>
+        </button>
+        <button id="arrow-right" class="arrow-btn">
+            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
+        </button>
     </div>
-    <div class="fp-section" data-index="3">
-      <div class="fp-slides" data-slides>
-        <div class="fp-slide" data-slide-index="0" data-active="true">
-          <div class="section-title"><i data-lucide="zap"></i> Infinite Scroll</div>
-          <div class="section-content">Scroll up or down to loop infinitely through the sections. Try keyboard arrows, mouse wheel, or touch gestures!</div>
-        </div>
-        <div class="fp-slide" data-slide-index="1">
-          <div class="section-title"><i data-lucide="image"></i> Slide 3.2</div>
-          <div class="section-content">This is the second horizontal slide.</div>
-        </div>
-        <div class="fp-slide" data-slide-index="2">
-          <div class="section-title"><i data-lucide="image"></i> Slide 3.3</div>
-          <div class="section-content">This is the third and final slide for this section.</div>
-        </div>
-      </div>
-    </div>
-    <div class="fp-section" data-index="4">
-      <div class="fp-slides" data-slides>
-        <div class="fp-slide" data-slide-index="0" data-active="true">
-          <div class="section-title"><i data-lucide="box"></i> Another Section</div>
-          <div class="section-content">This is just another standard section.</div>
-        </div>
-      </div>
-    </div>
-  </div>
-  <div class="fp-minimap" id="fp-minimap"></div>
-  <div class="fp-drag-ghost" id="fp-drag-ghost"></div>
-  <!-- Scripts -->
-  <script src="wwwui.js"></script>
-  <script src="app.js"></script>
+    <div id="arrow-popover" class="popover"></div>
+    <script src="grid-slider.js"></script>
 </body>
-</html> 
+</html>
