@@ -373,16 +373,22 @@ html, body {
   font-family: 'Courier New', Courier, monospace;
   font-size: 1.2rem;
   z-index: 1001; /* Higher than minimap */
-  opacity: 0.8;
+  opacity: 0;
   pointer-events: none; /* Make it non-interactive */
   display: flex;
   align-items: center;
   gap: 8px;
+  transition: opacity 0.3s ease-in-out;
+}
+
+#coords-hud.visible {
+    opacity: 0.8;
 }
 
 /* --- Header & Top-Down Menu --- */
 #menu-toggle {
-    pointer-events: auto;
+    pointer-events: none;
+    opacity: 0;
     position: fixed;
     top: 25px;
     right: 25px;
@@ -395,8 +401,12 @@ html, body {
     padding: 8px;
     border-radius: 5px;
     z-index: 1021;
-    opacity: 0.8;
     transition: opacity 0.2s ease-in-out;
+}
+
+#menu-toggle.visible {
+    pointer-events: auto;
+    opacity: 0.8;
 }
 
 #menu-toggle:hover {
@@ -465,10 +475,23 @@ html, body {
 h1,
 h2 {
     font-family: 'FoundersGrotesk', sans-serif;
+    color: #00000087;
+    letter-spacing: -0.04em;
+    text-align: center;
+    margin: 0;
+}
+
+h1 {
+    font-size: 6em;
+    line-height: 0.8;
+}
+
+h2 {
+    font-size: 1em;
 }
 
 ::-webkit-scrollbar-track {
-    background: #1a1a1a;
+    background: #f1f1f1;
 }
 
 ::-webkit-scrollbar-thumb {

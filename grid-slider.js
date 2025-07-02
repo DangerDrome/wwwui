@@ -36,6 +36,7 @@ document.addEventListener('DOMContentLoaded', () => {
     // --- State ---
     let currentGridRows = BASE_GRID_ROWS;
     let expandedRow = -1; // -1 means no row is expanded. Stores the index of the parent row.
+    let currentVisibleItems = []; // Holds the DOM elements for the visible grid items.
 
     let currentRow = 1; // Start at (1,1), the first "real" cell in the virtual grid.
     let currentCol = 1;
@@ -49,6 +50,7 @@ document.addEventListener('DOMContentLoaded', () => {
     let currentTranslateY = 0; // The wrapper's current Y offset.
     let currentLogoRotation = 0; // The logo's current rotation in degrees.
     let minimapDots = []; // Array to hold the minimap dot DOM elements.
+    let hudTimeout = null; // Timer for hiding the HUD.
 
     // --- Helpers ---
 
@@ -119,8 +121,14 @@ document.addEventListener('DOMContentLoaded', () => {
      * Rebuilds the entire grid DOM and minimap when rows are added or removed.
      */
     function rebuildGrid() {
-        const currentVisibleItems = [];
+        currentVisibleItems = [];
         const subPageNames = ['Overview', 'Details', 'Gallery'];
+        const pageTitles = { 0: 'DANGER', 1: 'About', 2: 'Services' };
+        const pageDescriptions = {
+            0: 'A creative powerhouse.',
+            1: 'Learn more about us.',
+            2: 'What we can do for you.'
+        };
 
         // 1. Generate the list of pages to display (including sub-pages)
         for (let i = 0; i < originalItems.length; i++) {
@@ -129,8 +137,12 @@ document.addEventListener('DOMContentLoaded', () => {
             // Re-create the content for the main page each time
             page.innerHTML = '';
             const heading = document.createElement('h1');
-            heading.textContent = `Page ${i + 1}`;
+            heading.textContent = pageTitles[i] || `Page ${i + 1}`;
             page.appendChild(heading);
+
+            const description = document.createElement('h2');
+            description.textContent = pageDescriptions[i] || `Description for Page ${i + 1}`;
+            page.appendChild(description);
 
             const button = document.createElement('button');
             button.className = 'more-info-btn';
@@ -233,6 +245,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
         updatePosition(false);
         updateMinimap();
+        showHudTemporarily();
     }
 
     // --- Core Logic ---
@@ -257,6 +270,7 @@ document.addEventListener('DOMContentLoaded', () => {
         wrapper.style.transform = `translate(${currentTranslateX}px, ${currentTranslateY}px)`;
         updateMinimap();
         updateCoordsHUD();
+        showHudTemporarily();
     }
 
     /**
@@ -358,15 +372,46 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     /**
+     * Shows the HUD for a couple of seconds, then fades it out.
+     */
+    function showHudTemporarily() {
+        clearTimeout(hudTimeout);
+        coordsHUD.classList.add('visible');
+        hudTimeout = setTimeout(() => {
+            coordsHUD.classList.remove('visible');
+        }, 2000);
+    }
+
+    /**
      * Updates the coordinates display on the HUD.
      */
     function updateCoordsHUD() {
         const realRow = (currentRow - 1 + currentGridRows) % currentGridRows;
         const realCol = (currentCol - 1 + BASE_GRID_COLS) % BASE_GRID_COLS;
-        const pageNumber = realRow * BASE_GRID_COLS + realCol + 1;
+        const itemIndex = realRow * BASE_GRID_COLS + realCol;
+        
+        if (itemIndex < 0 || itemIndex >= currentVisibleItems.length) return;
+
+        const currentItem = currentVisibleItems[itemIndex];
+        let title = currentItem.querySelector('h1')?.textContent || `Page ${itemIndex + 1}`;
+        
+        // Check if the current item is a sub-page and create a breadcrumb.
+        if (expandedRow !== -1 && currentItem.classList.contains('sub-page')) {
+            // The parent page is in the expanded row, at the same column.
+            const parentItemIndex = expandedRow * BASE_GRID_COLS + realCol;
+            if (parentItemIndex < currentVisibleItems.length) {
+                const parentItem = currentVisibleItems[parentItemIndex];
+                const parentTitle = parentItem.querySelector('h1')?.textContent || '';
+                if (parentTitle) {
+                    const subPageTitle = title;
+                    title = `${parentTitle} / ${subPageTitle}`;
+                }
+            }
+        }
+
         const pageIconSVG = `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line><polyline points="10 9 9 9 8 9"></polyline></svg>`;
         // Display 1-based coordinates for a more user-friendly format.
-        coordsHUD.innerHTML = `${pageIconSVG} Page ${pageNumber} | (${realRow + 1}, ${realCol + 1})`;
+        coordsHUD.innerHTML = `${pageIconSVG} ${title} | (${realRow + 1}, ${realCol + 1})`;
     }
 
     /**
@@ -445,15 +490,24 @@ document.addEventListener('DOMContentLoaded', () => {
         };
 
         document.addEventListener('mousemove', (e) => {
-            arrows.up.classList.toggle('visible', e.clientY < EDGE_DETECTION_THRESHOLD_PX);
-            arrows.down.classList.toggle('visible', window.innerHeight - e.clientY < EDGE_DETECTION_THRESHOLD_PX);
-            arrows.left.classList.toggle('visible', e.clientX < EDGE_DETECTION_THRESHOLD_PX);
-            arrows.right.classList.toggle('visible', window.innerWidth - e.clientX < EDGE_DETECTION_THRESHOLD_PX);
+            const nearTop = e.clientY < EDGE_DETECTION_THRESHOLD_PX;
+            const nearBottom = window.innerHeight - e.clientY < EDGE_DETECTION_THRESHOLD_PX;
+            const nearLeft = e.clientX < EDGE_DETECTION_THRESHOLD_PX;
+            const nearRight = window.innerWidth - e.clientX < EDGE_DETECTION_THRESHOLD_PX;
+
+            arrows.up.classList.toggle('visible', nearTop && !nearLeft && !nearRight);
+            arrows.down.classList.toggle('visible', nearBottom && !nearLeft && !nearRight);
+            arrows.left.classList.toggle('visible', nearLeft && !nearTop && !nearBottom);
+            arrows.right.classList.toggle('visible', nearRight && !nearTop && !nearBottom);
+
+            const inTopRightCorner = nearTop && nearRight;
+            menuToggle.classList.toggle('visible', inTopRightCorner);
         });
 
         // Hide all arrows when the mouse leaves the window.
         document.body.addEventListener('mouseleave', () => {
             Object.values(arrows).forEach(arrow => arrow.classList.remove('visible'));
+            menuToggle.classList.remove('visible');
         });
     }
 
@@ -474,6 +528,9 @@ document.addEventListener('DOMContentLoaded', () => {
         container.style.cursor = 'grabbing';
         wrapper.style.transition = 'none';
         logo.style.transition = 'none';
+        
+        clearTimeout(hudTimeout);
+        coordsHUD.classList.add('visible');
 
         // Store the starting translation
         currentTranslateX = -currentCol * window.innerWidth;
@@ -669,5 +726,6 @@ document.addEventListener('DOMContentLoaded', () => {
     rebuildGrid(); // Initial build
     setupArrowButtons();
     setupEdgeDetection();
+    showHudTemporarily();
     // updatePosition(); // Called inside rebuildGrid
 });
