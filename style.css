@@ -8,7 +8,7 @@
   --text-muted: #9ca3af;
   --primary: #34d399;
   --primary-pastel: #a7f3d0;
-  --secondary-pastel: #bae6fd;
+  --secondary-pastel: #a7c7f3;
   --border-color: #4d4d4d;
   
   /* Theme Colors */
@@ -22,6 +22,7 @@
   --arrow-bg: rgba(0, 0, 0, 0.3);
   --arrow-hover-bg: rgba(0, 0, 0, 0.6);
   --arrow-border-color: rgba(255, 255, 255, 0.2);
+  --subpage-bg-color: #2e2e2e; /* A neutral, dark pastel for sub-pages */
   
   /* Sizing */
   --page-edge-offset: 20px;
@@ -92,10 +93,40 @@ html, body {
   width: 100vw;
   height: 100vh;
   display: flex;
+  flex-direction: column; /* Stack content vertically */
   justify-content: center;
   align-items: center;
   font-size: var(--grid-item-font-size);
   font-weight: bold;
+  position: relative; /* Needed for positioning the button */
+}
+
+.grid-item.sub-page {
+    background-color: var(--subpage-bg-color);
+}
+
+.more-info-btn {
+    margin-top: 20px;
+    background-color: var(--popover-bg-color);
+    color: var(--popover-text-color);
+    border: none;
+    border-radius: 50%;
+    width: 50px;
+    height: 50px;
+    font-size: 2rem;
+    cursor: pointer;
+    z-index: 10;
+    opacity: 0.8;
+    transition: all 0.2s ease-in-out;
+}
+
+.more-info-btn:hover {
+    opacity: 1;
+    transform: scale(1.1);
+}
+
+.minimap-dot.sub-page-dot {
+    background-color: var(--secondary-pastel);
 }
 
 #top-left-logo {

@@ -7,8 +7,8 @@
 document.addEventListener('DOMContentLoaded', () => {
 
     // --- Configuration & Constants ---
-    const GRID_COLS = 3; // The visible number of columns in the grid.
-    const GRID_ROWS = 3; // The visible number of rows in the grid.
+    const BASE_GRID_COLS = 3; // The visible number of columns in the grid.
+    const BASE_GRID_ROWS = 3; // The visible number of rows in the grid.
     const TRANSITION_DURATION_MS = 400; // Duration for slide and logo animations.
     const DRAG_THRESHOLD_DIVISOR = 8; // Lower number means a longer drag is needed to change cells.
     const AXIS_LOCK_THRESHOLD_PX = 1; // Pixels to drag before locking movement to one axis.
@@ -16,8 +16,8 @@ document.addEventListener('DOMContentLoaded', () => {
     const EDGE_DETECTION_THRESHOLD_PX = 100; // Distance from edge to show navigation arrows.
 
     // --- Derived Constants ---
-    const VIRTUAL_GRID_COLS = GRID_COLS + 2; // Grid cols including cloned buffer cells for looping.
-    const VIRTUAL_GRID_ROWS = GRID_ROWS + 2; // Grid rows including cloned buffer cells for looping.
+    const VIRTUAL_GRID_COLS = BASE_GRID_COLS + 2; // Grid cols including cloned buffer cells for looping.
+    const VIRTUAL_GRID_ROWS = BASE_GRID_ROWS + 2; // Grid rows including cloned buffer cells for looping.
 
     // --- DOM Elements ---
     const container = document.getElementById('grid-container');
@@ -34,6 +34,9 @@ document.addEventListener('DOMContentLoaded', () => {
     const iconClose = document.getElementById('icon-close');
 
     // --- State ---
+    let currentGridRows = BASE_GRID_ROWS;
+    let expandedRow = -1; // -1 means no row is expanded. Stores the index of the parent row.
+
     let currentRow = 1; // Start at (1,1), the first "real" cell in the virtual grid.
     let currentCol = 1;
     let isDragging = false; // True when the user is actively dragging.
@@ -60,6 +63,176 @@ document.addEventListener('DOMContentLoaded', () => {
         // Using the YIQ formula to determine brightness
         const yiq = ((r * 299) + (g * 587) + (b * 114)) / 1000;
         return (yiq >= 128) ? '#000000' : '#ffffff';
+    }
+
+    /**
+     * Darkens a hex color by a specified percentage.
+     * @param {string} color - The hex color string (e.g., "#RRGGBB").
+     * @param {number} percent - The percentage to darken (e.g., 20 for 20%).
+     * @returns {string} The new darkened hex color string.
+     */
+    function shadeColor(color, percent) {
+        let R = parseInt(color.substring(1, 3), 16);
+        let G = parseInt(color.substring(3, 5), 16);
+        let B = parseInt(color.substring(5, 7), 16);
+
+        R = parseInt(R * (100 - percent) / 100);
+        G = parseInt(G * (100 - percent) / 100);
+        B = parseInt(B * (100 - percent) / 100);
+
+        R = (R < 255) ? R : 255;
+        G = (G < 255) ? G : 255;
+        B = (B < 255) ? B : 255;
+
+        const RR = ((R.toString(16).length === 1) ? "0" + R.toString(16) : R.toString(16));
+        const GG = ((G.toString(16).length === 1) ? "0" + G.toString(16) : G.toString(16));
+        const BB = ((B.toString(16).length === 1) ? "0" + B.toString(16) : B.toString(16));
+
+        return "#" + RR + GG + BB;
+    }
+
+    // --- Accordion Logic ---
+
+    /**
+     * Toggles the sub-page accordion for a given parent row.
+     * @param {number} parentRowIndex - The 0-indexed row of the page to expand/collapse.
+     */
+    function toggleAccordion(parentRowIndex) {
+        const currentlyExpanded = expandedRow === parentRowIndex;
+
+        if (expandedRow !== -1) {
+            // If any row is expanded, collapse it first.
+            expandedRow = -1;
+            currentGridRows = BASE_GRID_ROWS;
+        }
+
+        if (!currentlyExpanded) {
+            // If we are opening a new row (and not just closing an old one).
+            expandedRow = parentRowIndex;
+            currentGridRows = BASE_GRID_ROWS + 1; // Add one row for sub-pages
+        }
+
+        rebuildGrid();
+    }
+
+    /**
+     * Rebuilds the entire grid DOM and minimap when rows are added or removed.
+     */
+    function rebuildGrid() {
+        const currentVisibleItems = [];
+        const subPageNames = ['Overview', 'Details', 'Gallery'];
+
+        // 1. Generate the list of pages to display (including sub-pages)
+        for (let i = 0; i < originalItems.length; i++) {
+            const page = originalItems[i];
+            
+            // Re-create the content for the main page each time
+            page.innerHTML = '';
+            const heading = document.createElement('h1');
+            heading.textContent = `Page ${i + 1}`;
+            page.appendChild(heading);
+
+            const button = document.createElement('button');
+            button.className = 'more-info-btn';
+            button.dataset.pageIndex = i;
+            button.textContent = '+';
+            page.appendChild(button);
+
+            currentVisibleItems.push(page);
+            const parentRowIndex = Math.floor(i / BASE_GRID_COLS);
+
+            if (parentRowIndex === expandedRow && (i + 1) % BASE_GRID_COLS === 0) {
+                for (let j = 0; j < BASE_GRID_COLS; j++) {
+                    const subPage = document.createElement('div');
+                    subPage.classList.add('grid-item', 'sub-page');
+                    // Background color is now handled by CSS
+                    subPage.innerHTML = `<h1>${subPageNames[j] || `Sub Page ${j+1}`}</h1>`;
+                    currentVisibleItems.push(subPage);
+                }
+            }
+        }
+
+        // 2. Rebuild the main grid DOM with virtual clones
+        wrapper.innerHTML = '';
+        const VIRTUAL_GRID_COLS = BASE_GRID_COLS + 2;
+        const VIRTUAL_GRID_ROWS = currentGridRows + 2;
+        wrapper.style.width = `${VIRTUAL_GRID_COLS * 100}vw`;
+        wrapper.style.height = `${VIRTUAL_GRID_ROWS * 100}vh`;
+        wrapper.style.gridTemplateColumns = `repeat(${VIRTUAL_GRID_COLS}, 1fr)`;
+        wrapper.style.gridTemplateRows = `repeat(${VIRTUAL_GRID_ROWS}, 1fr)`;
+
+        for (let r = 0; r < VIRTUAL_GRID_ROWS; r++) {
+            for (let c = 0; c < VIRTUAL_GRID_COLS; c++) {
+                const realRow = (r - 1 + currentGridRows) % currentGridRows;
+                const realCol = (c - 1 + BASE_GRID_COLS) % BASE_GRID_COLS;
+                const itemIndex = realRow * BASE_GRID_COLS + realCol;
+                const clone = currentVisibleItems[itemIndex].cloneNode(true);
+                wrapper.appendChild(clone);
+            }
+        }
+
+        // 3. Rebuild the minimap
+        minimap.innerHTML = '';
+        minimapDots = [];
+        minimap.style.gridTemplateColumns = `repeat(${BASE_GRID_COLS}, 1fr)`;
+
+        // Popover logic needs to be managed here since the minimap is cleared.
+        const defaultPopoverBg = getComputedStyle(minimapPopover).getPropertyValue('background-color');
+        const defaultPopoverColor = getComputedStyle(minimapPopover).getPropertyValue('color');
+        minimap.addEventListener('mouseleave', () => {
+            minimapPopover.classList.remove('visible');
+            minimapPopover.style.backgroundColor = defaultPopoverBg;
+            minimapPopover.style.color = defaultPopoverColor;
+            minimapPopover.style.setProperty('--popover-bg', defaultPopoverBg);
+        });
+
+        for (let r = 0; r < currentGridRows; r++) {
+            for (let c = 0; c < BASE_GRID_COLS; c++) {
+                const dot = document.createElement('div');
+                dot.classList.add('minimap-dot');
+                dot.dataset.row = r;
+                dot.dataset.col = c;
+
+                // Check if this dot corresponds to a sub-page
+                const itemIndex = r * BASE_GRID_COLS + c;
+                if (currentVisibleItems[itemIndex].classList.contains('sub-page')) {
+                    dot.classList.add('sub-page-dot');
+                }
+
+                dot.addEventListener('click', () => moveTo(r, c));
+
+                dot.addEventListener('mouseenter', () => {
+                    const itemIndex = r * BASE_GRID_COLS + c;
+                    const targetCell = currentVisibleItems[itemIndex];
+                    if (!targetCell) return;
+
+                    const bgColor = window.getComputedStyle(targetCell).backgroundColor;
+                    const textColor = getContrastColor(bgColor);
+                    
+                    minimapPopover.textContent = targetCell.querySelector('h1').textContent;
+                    minimapPopover.style.backgroundColor = bgColor;
+                    minimapPopover.style.color = textColor;
+                    minimapPopover.style.setProperty('--popover-bg', bgColor);
+                    minimapPopover.classList.add('visible');
+                });
+
+                minimap.appendChild(dot);
+                minimapDots.push(dot);
+            }
+        }
+        
+        // 4. Re-attach accordion button listeners
+        document.querySelectorAll('.more-info-btn').forEach(button => {
+            button.addEventListener('click', (e) => {
+                e.stopPropagation();
+                const pageIndex = parseInt(e.currentTarget.dataset.pageIndex, 10);
+                const parentRowIndex = Math.floor(pageIndex / BASE_GRID_COLS);
+                toggleAccordion(parentRowIndex);
+            });
+        });
+
+        updatePosition(false);
+        updateMinimap();
     }
 
     // --- Core Logic ---
@@ -95,7 +268,7 @@ document.addEventListener('DOMContentLoaded', () => {
         let teleported = false;
 
         if (currentRow === 0) { // Moved to top cloned row
-            currentRow = GRID_ROWS;
+            currentRow = currentGridRows;
             teleported = true;
         } else if (currentRow === VIRTUAL_GRID_ROWS - 1) { // Moved to bottom cloned row
             currentRow = 1;
@@ -103,7 +276,7 @@ document.addEventListener('DOMContentLoaded', () => {
         }
 
         if (currentCol === 0) { // Moved to left cloned col
-            currentCol = GRID_COLS;
+            currentCol = BASE_GRID_COLS;
             teleported = true;
         } else if (currentCol === VIRTUAL_GRID_COLS - 1) { // Moved to right cloned col
             currentCol = 1;
@@ -124,18 +297,18 @@ document.addEventListener('DOMContentLoaded', () => {
     function moveTo(targetRealRow, targetRealCol) {
         if (isTransitioning || isMenuOpen) return;
 
-        const currentRealRow = (currentRow - 1 + GRID_ROWS) % GRID_ROWS;
-        const currentRealCol = (currentCol - 1 + GRID_COLS) % GRID_COLS;
+        const currentRealRow = (currentRow - 1 + currentGridRows) % currentGridRows;
+        const currentRealCol = (currentCol - 1 + BASE_GRID_COLS) % BASE_GRID_COLS;
 
         let deltaRow = targetRealRow - currentRealRow;
         let deltaCol = targetRealCol - currentRealCol;
 
         // Check if wrapping around would be a shorter path.
-        if (Math.abs(deltaRow) > GRID_ROWS / 2) {
-            deltaRow = deltaRow > 0 ? deltaRow - GRID_ROWS : deltaRow + GRID_ROWS;
+        if (Math.abs(deltaRow) > currentGridRows / 2) {
+            deltaRow = deltaRow > 0 ? deltaRow - currentGridRows : deltaRow + currentGridRows;
         }
-        if (Math.abs(deltaCol) > GRID_COLS / 2) {
-            deltaCol = deltaCol > 0 ? deltaCol - GRID_COLS : deltaCol + GRID_COLS;
+        if (Math.abs(deltaCol) > BASE_GRID_COLS / 2) {
+            deltaCol = deltaCol > 0 ? deltaCol - BASE_GRID_COLS : deltaCol + BASE_GRID_COLS;
         }
 
         if (deltaRow === 0 && deltaCol === 0) return;
@@ -160,73 +333,14 @@ document.addEventListener('DOMContentLoaded', () => {
      * items to create buffer cells on each side for the infinite scroll effect.
      */
     function setupInfiniteGrid() {
-        wrapper.innerHTML = ''; // Clear original static items
-        wrapper.style.width = `${VIRTUAL_GRID_COLS * 100}vw`;
-        wrapper.style.height = `${VIRTUAL_GRID_ROWS * 100}vh`;
-        wrapper.style.gridTemplateColumns = `repeat(${VIRTUAL_GRID_COLS}, 1fr)`;
-        wrapper.style.gridTemplateRows = `repeat(${VIRTUAL_GRID_ROWS}, 1fr)`;
-
-        for (let r = 0; r < VIRTUAL_GRID_ROWS; r++) {
-            for (let c = 0; c < VIRTUAL_GRID_COLS; c++) {
-                // Calculate which original item to clone for the current virtual cell.
-                const originalRow = (r - 1 + GRID_ROWS) % GRID_ROWS;
-                const originalCol = (c - 1 + GRID_COLS) % GRID_COLS;
-                const originalIndex = originalRow * GRID_COLS + originalCol;
-
-                const clone = originalItems[originalIndex].cloneNode(true);
-                clone.innerHTML = ''; // Clear original content
-                const heading = document.createElement('h1');
-                heading.textContent = `page ${originalIndex + 1}`;
-                clone.appendChild(heading);
-                wrapper.appendChild(clone);
-            }
-        }
+        // This function is now effectively replaced by rebuildGrid
     }
 
     /**
      * Creates the minimap dots and sets up their event listeners.
      */
     function setupMinimap() {
-        const defaultPopoverBg = getComputedStyle(minimapPopover).getPropertyValue('background-color');
-        const defaultPopoverColor = getComputedStyle(minimapPopover).getPropertyValue('color');
-
-        minimap.addEventListener('mouseleave', () => {
-            minimapPopover.classList.remove('visible');
-            // Reset to default styles when mouse leaves the entire minimap
-            minimapPopover.style.backgroundColor = defaultPopoverBg;
-            minimapPopover.style.color = defaultPopoverColor;
-            minimapPopover.style.setProperty('--popover-bg', defaultPopoverBg);
-
-        });
-
-        for (let r = 0; r < GRID_ROWS; r++) {
-            for (let c = 0; c < GRID_COLS; c++) {
-                const dot = document.createElement('div');
-                dot.classList.add('minimap-dot');
-                dot.dataset.row = r;
-                dot.dataset.col = c;
-
-                dot.addEventListener('mouseenter', () => {
-                    const originalIndex = r * GRID_COLS + c;
-                    const targetCell = originalItems[originalIndex];
-                    const bgColor = targetCell.style.backgroundColor;
-                    const textColor = getContrastColor(bgColor);
-
-                    minimapPopover.textContent = `Page ${originalIndex + 1}`;
-                    minimapPopover.style.backgroundColor = bgColor;
-                    minimapPopover.style.color = textColor;
-                    minimapPopover.style.setProperty('--popover-bg', bgColor);
-                    minimapPopover.classList.add('visible');
-                });
-
-                dot.addEventListener('click', () => {
-                    moveTo(r, c);
-                });
-
-                minimap.appendChild(dot);
-                minimapDots.push(dot);
-            }
-        }
+        // This function is now effectively replaced by rebuildGrid
     }
 
     /**
@@ -234,9 +348,9 @@ document.addEventListener('DOMContentLoaded', () => {
      */
     function updateMinimap() {
         // Calculate the "real" grid position, ignoring the cloned buffer cells.
-        const realRow = (currentRow - 1 + GRID_ROWS) % GRID_ROWS;
-        const realCol = (currentCol - 1 + GRID_COLS) % GRID_COLS;
-        const activeIndex = realRow * GRID_COLS + realCol;
+        const realRow = (currentRow - 1 + currentGridRows) % currentGridRows;
+        const realCol = (currentCol - 1 + BASE_GRID_COLS) % BASE_GRID_COLS;
+        const activeIndex = realRow * BASE_GRID_COLS + realCol;
 
         minimapDots.forEach((dot, index) => {
             dot.classList.toggle('active', index === activeIndex);
@@ -247,9 +361,9 @@ document.addEventListener('DOMContentLoaded', () => {
      * Updates the coordinates display on the HUD.
      */
     function updateCoordsHUD() {
-        const realRow = (currentRow - 1 + GRID_ROWS) % GRID_ROWS;
-        const realCol = (currentCol - 1 + GRID_COLS) % GRID_COLS;
-        const pageNumber = realRow * GRID_COLS + realCol + 1;
+        const realRow = (currentRow - 1 + currentGridRows) % currentGridRows;
+        const realCol = (currentCol - 1 + BASE_GRID_COLS) % BASE_GRID_COLS;
+        const pageNumber = realRow * BASE_GRID_COLS + realCol + 1;
         const pageIconSVG = `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line><polyline points="10 9 9 9 8 9"></polyline></svg>`;
         // Display 1-based coordinates for a more user-friendly format.
         coordsHUD.innerHTML = `${pageIconSVG} Page ${pageNumber} | (${realRow + 1}, ${realCol + 1})`;
@@ -452,13 +566,23 @@ document.addEventListener('DOMContentLoaded', () => {
     function handleKeyDown(e) {
         if (isTransitioning || isMenuOpen) return;
 
+        let newRow = currentRow;
+        let newCol = currentCol;
+
         switch (e.key) {
-            case 'ArrowUp': currentRow--; animateLogo('ccw'); break;
-            case 'ArrowDown': currentRow++; animateLogo('cw'); break;
-            case 'ArrowLeft': currentCol--; animateLogo('ccw'); break;
-            case 'ArrowRight': currentCol++; animateLogo('cw'); break;
+            case 'ArrowUp': newRow--; animateLogo('ccw'); break;
+            case 'ArrowDown': newRow++; animateLogo('cw'); break;
+            case 'ArrowLeft': newCol--; animateLogo('ccw'); break;
+            case 'ArrowRight': newCol++; animateLogo('cw'); break;
             default: return; // Ignore other keys
         }
+
+        // Wrap around logic using the current grid dimensions
+        const realRow = (newRow - 1 + currentGridRows) % currentGridRows;
+        const realCol = (newCol - 1 + BASE_GRID_COLS) % BASE_GRID_COLS;
+
+        currentRow = realRow + 1;
+        currentCol = realCol + 1;
 
         updatePosition(true);
     }
@@ -472,10 +596,10 @@ document.addEventListener('DOMContentLoaded', () => {
         e.preventDefault(); // Prevent page scrolling
 
         // Calculate current linear index from the real grid position
-        const realRow = (currentRow - 1 + GRID_ROWS) % GRID_ROWS;
-        const realCol = (currentCol - 1 + GRID_COLS) % GRID_COLS;
-        const currentIndex = realRow * GRID_COLS + realCol;
-        const totalCells = GRID_ROWS * GRID_COLS;
+        const realRow = (currentRow - 1 + currentGridRows) % currentGridRows;
+        const realCol = (currentCol - 1 + BASE_GRID_COLS) % BASE_GRID_COLS;
+        const currentIndex = realRow * BASE_GRID_COLS + realCol;
+        const totalCells = currentGridRows * BASE_GRID_COLS;
 
         let nextIndex;
 
@@ -489,8 +613,8 @@ document.addEventListener('DOMContentLoaded', () => {
         }
 
         // Convert linear index back to row/col
-        const nextRealRow = Math.floor(nextIndex / GRID_COLS);
-        const nextRealCol = nextIndex % GRID_COLS;
+        const nextRealRow = Math.floor(nextIndex / BASE_GRID_COLS);
+        const nextRealCol = nextIndex % BASE_GRID_COLS;
 
         // Use moveTo to handle the navigation
         moveTo(nextRealRow, nextRealCol);
@@ -542,9 +666,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // Initial page setup
     container.style.cursor = 'grab';
-    setupInfiniteGrid();
-    setupMinimap();
+    rebuildGrid(); // Initial build
     setupArrowButtons();
     setupEdgeDetection();
-    updatePosition(); // Set initial position without animation
+    // updatePosition(); // Called inside rebuildGrid
 });
