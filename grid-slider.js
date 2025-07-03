@@ -55,6 +55,21 @@ document.addEventListener('DOMContentLoaded', () => {
     // --- Helpers ---
 
     /**
+     * Debounces a function to delay its execution until after a certain period of inactivity.
+     * @param {Function} func - The function to debounce.
+     * @param {number} delay - The debounce duration in milliseconds.
+     * @returns {Function} The debounced function.
+     */
+    function debounce(func, delay) {
+        let timeout;
+        return function(...args) {
+            const context = this;
+            clearTimeout(timeout);
+            timeout = setTimeout(() => func.apply(context, args), delay);
+        };
+    }
+
+    /**
      * Determines whether to use black or white text based on the brightness of a background color.
      * @param {string} rgb - The RGB background color string (e.g., "rgb(115, 77, 77)").
      * @returns {'#000000' | '#ffffff'} - The contrasting color.
@@ -184,19 +199,9 @@ document.addEventListener('DOMContentLoaded', () => {
         }
 
         // 3. Rebuild the minimap
-        minimap.innerHTML = '';
+        Array.from(minimap.querySelectorAll('.minimap-dot')).forEach(dot => dot.remove());
         minimapDots = [];
         minimap.style.gridTemplateColumns = `repeat(${BASE_GRID_COLS}, 1fr)`;
-
-        // Popover logic needs to be managed here since the minimap is cleared.
-        const defaultPopoverBg = getComputedStyle(minimapPopover).getPropertyValue('background-color');
-        const defaultPopoverColor = getComputedStyle(minimapPopover).getPropertyValue('color');
-        minimap.addEventListener('mouseleave', () => {
-            minimapPopover.classList.remove('visible');
-            minimapPopover.style.backgroundColor = defaultPopoverBg;
-            minimapPopover.style.color = defaultPopoverColor;
-            minimapPopover.style.setProperty('--popover-bg', defaultPopoverBg);
-        });
 
         for (let r = 0; r < currentGridRows; r++) {
             for (let c = 0; c < BASE_GRID_COLS; c++) {
@@ -723,6 +728,26 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // Initial page setup
     container.style.cursor = 'grab';
+
+    // Set up one-time listeners
+    const defaultPopoverBg = getComputedStyle(minimapPopover).getPropertyValue('background-color');
+    const defaultPopoverColor = getComputedStyle(minimapPopover).getPropertyValue('color');
+    minimap.addEventListener('mouseleave', () => {
+        minimapPopover.classList.remove('visible');
+        minimapPopover.style.backgroundColor = defaultPopoverBg;
+        minimapPopover.style.color = defaultPopoverColor;
+        minimapPopover.style.setProperty('--popover-bg', defaultPopoverBg);
+    });
+
+    const handleResize = () => {
+        if (isDragging) {
+            isDragging = false;
+            container.style.cursor = 'grab';
+        }
+        updatePosition(true);
+    };
+    window.addEventListener('resize', debounce(handleResize, 100));
+
     rebuildGrid(); // Initial build
     setupArrowButtons();
     setupEdgeDetection();
